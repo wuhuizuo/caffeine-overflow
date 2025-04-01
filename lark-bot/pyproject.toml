@@ -5,5 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "colorlog>=6.9.0",
+    "lark-oapi>=1.4.12",
     "mcp[cli]>=1.6.0",
+    "openai>=1.70.0",
+    "pyjson>=1.4.1",
+    "pyyaml>=6.0.2",
 ]

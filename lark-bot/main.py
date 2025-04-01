@@ -1,99 +1,35 @@
 import asyncio
-import yaml
-import logging
-import os
-import shutil
+import logging, colorlog
+import logging.handlers
 from contextlib import AsyncExitStack
 from typing import Any
+import yaml
+import json
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+import lark_oapi as lark
+from lark_oapi.api.im.v1 import ReplyMessageRequest, ReplyMessageRequestBody, CreateMessageReactionRequest, CreateMessageReactionRequestBody, Emoji
+import openai
+from openai import OpenAI
 
-import httpx
-from dotenv import load_dotenv
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from lark_sdk_python import Client, ReceiveEventHandler, types
-
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-class Configuration:
-    """Manages configuration and environment variables for the MCP client."""
-
-    def __init__(self) -> None:
-        """Initialize configuration with environment variables."""
-        self.load_env()
-        self.api_key = os.getenv("LLM_API_KEY")
-
-    @staticmethod
-    def load_env() -> None:
-        """Load environment variables from .env file."""
-        load_dotenv()
-
-    @staticmethod
-    def load_config(file_path: str) -> dict[str, Any]:
-        """Load server configuration from JSON file.
-
-        Args:
-            file_path: Path to the JSON configuration file.
-
-        Returns:
-            Dict containing server configuration.
-
-        Raises:
-            FileNotFoundError: If configuration file doesn't exist.
-            JSONDecodeError: If configuration file is invalid JSON.
-        """
-        with open(file_path, "r") as f:
-            return yaml.safe_load(f)
-
-    @property
-    def llm_api_key(self) -> str:
-        """Get the LLM API key.
-
-        Returns:
-            The API key as a string.
-
-        Raises:
-            ValueError: If the API key is not found in environment variables.
-        """
-        if not self.api_key:
-            raise ValueError("LLM_API_KEY not found in environment variables")
-        return self.api_key
 
 
 class Server:
     """Manages MCP server connections and tool execution."""
 
-    def __init__(self, name: str, config: dict[str, Any]) -> None:
+    def __init__(self, name: str, cfg: dict[str, str]) -> None:
         self.name: str = name
-        self.config: dict[str, Any] = config
-        self.stdio_context: Any | None = None
+        self.sse_url: str = cfg["sse_url"]
         self.session: ClientSession | None = None
         self._cleanup_lock: asyncio.Lock = asyncio.Lock()
         self.exit_stack: AsyncExitStack = AsyncExitStack()
 
     async def initialize(self) -> None:
         """Initialize the server connection."""
-        command = (
-            shutil.which("npx")
-            if self.config["command"] == "npx"
-            else self.config["command"]
-        )
-        if command is None:
-            raise ValueError("The command must be a valid string and cannot be None.")
 
-        server_params = StdioServerParameters(
-            command=command,
-            args=self.config["args"],
-            env={**os.environ, **self.config["env"]}
-            if self.config.get("env")
-            else None,
-        )
         try:
             stdio_transport = await self.exit_stack.enter_async_context(
-                stdio_client(server_params)
+                sse_client(self.sse_url)
             )
             read, write = stdio_transport
             session = await self.exit_stack.enter_async_context(
@@ -179,7 +115,6 @@ class Server:
             try:
                 await self.exit_stack.aclose()
                 self.session = None
-                self.stdio_context = None
             except Exception as e:
                 logging.error(f"Error during cleanup of server {self.name}: {e}")
 
@@ -218,69 +153,20 @@ Arguments:
 """
 
 
-class LLMClient:
-    """Manages communication with the LLM provider."""
-
-    def __init__(self, api_key: str) -> None:
-        self.api_key: str = api_key
-
-    def get_response(self, messages: list[dict[str, str]]) -> str:
-        """Get a response from the LLM.
-
-        Args:
-            messages: A list of message dictionaries.
-
-        Returns:
-            The LLM's response as a string.
-
-        Raises:
-            httpx.RequestError: If the request to the LLM fails.
-        """
-        url = "https://api.groq.com/openai/v1/chat/completions"
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-        }
-        payload = {
-            "messages": messages,
-            "model": "llama-3.2-90b-vision-preview",
-            "temperature": 0.7,
-            "max_tokens": 4096,
-            "top_p": 1,
-            "stream": False,
-            "stop": None,
-        }
-
-        try:
-            with httpx.Client() as client:
-                response = client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                return data["choices"][0]["message"]["content"]
-
-        except httpx.RequestError as e:
-            error_message = f"Error getting LLM response: {str(e)}"
-            logging.error(error_message)
-
-            if isinstance(e, httpx.HTTPStatusError):
-                status_code = e.response.status_code
-                logging.error(f"Status code: {status_code}")
-                logging.error(f"Response details: {e.response.text}")
-
-            return (
-                f"I encountered an error: {error_message}. "
-                "Please try again or rephrase your request."
-            )
-
-
-class ChatSession(ReceiveEventHandler):
+class ChatSession:
     """Orchestrates the interaction between user, LLM, and tools."""
 
-    def __init__(self, app_id: str, app_secret: str, servers: list[Server], llm_client: LLMClient) -> None:
+    def __init__(self, lark_client: lark.Client, servers: list[Server], llm_cfg: dict[str, str]) -> None:
+        self.lark_client = lark_client
         self.servers: list[Server] = servers
-        self.llm_client: LLMClient = llm_client
+
+        # AI
+        openai.api_type = llm_cfg["api_type"]
+        openai.api_version = llm_cfg["api_version"]
+        self.llm_client: OpenAI = OpenAI(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
+        self.llm_model = llm_cfg["model"]
         self.system_message = ""
+
 
     async def cleanup_servers(self) -> None:
         """Clean up all servers properly."""
@@ -339,29 +225,49 @@ class ChatSession(ReceiveEventHandler):
         except json.JSONDecodeError:
             return llm_response
 
-    def on_message_receive_v1(self, data: types.ReceiveEventV1[types.MessageReceiveEvent]) -> None:
+    def do_p2_im_message_receive_v1(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         message_content = json.loads(data.event.message.content)
-        text = message_content.text.strip()
+        # print the message content
+        print(message_content)
+        text = message_content["text"].strip()
 
         # Example integration: If the message starts with "fetch", use the tool
         if text.startswith("/ask"):
+            self._reply_text(data, "🤔")
             user_input = text[4:].strip() # Extract the URL after "ask"
-            if url:
-                result = self._handle_message(user_input)
-                self._reply_text(data, result)
+            if user_input:
+                result = self._handle_message(model=self.llm_model, user_input=user_input)
+                if result:
+                    self._reply_text(data, result)
+                else:
+                    self._reply_text(data, "No answer found.")
             else:
-                self._reply_text(data, "Please provide a URL to fetch after 'fetch'.")
+                self._reply_text(data, "Please provide your question.")
+
+
+    def _reply_text(self, data: lark.im.v1.P2ImMessageReceiveV1, text: str):
+        if data and data.event and data.event.message and data.event.message.message_id:
+            message_id = data.event.message.message_id
+            request = CreateMessageReactionRequest.builder() \
+                .message_id(message_id) \
+                .request_body(CreateMessageReactionRequestBody.builder()
+                    .reaction_type(Emoji.builder()
+                        .emoji_type("SMILE")
+                        .build())
+                    .build()) \
+                .build()
+
+            response = self.lark_client.im.v1.message.reply(request)
+
+            if response.success():
+                logging.debug("response successful")
+            else:
+                logging.error("response failed")
+
         else:
-            self._reply_text(data, "Other response from MCP Bot!")
+            logging.error("Invalid message data structure")
 
-    def _reply_text(self, data: types.ReceiveEventV1[types.MessageReceiveEvent], text: str):
-        client.message.reply(
-            message_id=data.event.message.message_id,
-            content=json.dumps({"text": text}),
-            msg_type=types.MsgType.TEXT,
-        )
-
-    def initialize(self) -> None:
+    async def initialize(self) -> None:
         for server in self.servers:
             try:
                 await server.initialize()
@@ -400,17 +306,18 @@ class ChatSession(ReceiveEventHandler):
         )
 
 
-    async def _handle_message(self, user_input: str) -> str | None:
+    def _handle_message(self, model: str, user_input: str) -> str | None:
         """Main chat session handler."""
         messages = [
             {"role": "system", "content": self.system_message},
             {"role": "user", "content": user_input},
         ]
 
-        llm_response = self.llm_client.get_response(messages)
+        response = self.llm_client.chat.completions.create(model=model, messages=messages)
+        llm_response = response.choices[0].message.content
         logging.info("\nAssistant: %s", llm_response)
 
-        result = await self.process_llm_response(llm_response)
+        result = self.process_llm_response(llm_response)
         if result != llm_response:
             messages.append({"role": "assistant", "content": llm_response})
             messages.append({"role": "system", "content": result})
@@ -421,24 +328,57 @@ class ChatSession(ReceiveEventHandler):
         else:
             return llm_response
 
-async def main() -> None:    
+async def main():
     """Initialize and run the chat session."""
-    try:
-        config = Configuration()
-        server_config = config.load_config("servers_config.yaml")
+    with open("config.yaml") as f:
+        config = yaml.safe_load(f)
+
+    # Lark
+    lark_app_id = config["lark"]["app_id"]
+    lark_app_secret = config["lark"]["app_secret"]
+    lark_log_level = lark.LogLevel.DEBUG
+    lark_response_client = lark.Client.builder() \
+        .app_id(lark_app_id) \
+        .app_secret(lark_app_secret) \
+        .log_level(lark_log_level) \
+        .build()
+
+    # Check if mcpServers configuration exists
+    if "mcpServers" not in config or not config["mcpServers"]:
+        logging.warning("No MCP servers configured. Continuing without server initialization.")
+        servers = []
+    else:
         servers = [
             Server(name, srv_config)
-            for name, srv_config in server_config["mcpServers"].items()
+            for name, srv_config in config["mcpServers"].items()
         ]
-        llm_client = LLMClient(config.llm_api_key)
-        chat_handler = ChatSession(servers, llm_client)
-        lark_client = Client(app_id= server_config["lark"]["app_id"], app_secret = server_config["lark"]["app_secret"])
-        lark_client.event.set_handler(chat_handler)
-        chat_handler.initialize()
-        client.event.start_service("", "", 8080)
-    finally:
-        await chat_handler.cleanup_servers()
 
+    chat_handler = ChatSession(lark_response_client, servers, config["ai"])
+    event_handler = lark.EventDispatcherHandler.builder("", "", lark.LogLevel.DEBUG) \
+        .register_p2_im_message_receive_v1(chat_handler.do_p2_im_message_receive_v1) \
+        .build()
+
+    # Create the Lark WS client
+    lark_app = lark.ws.Client(lark_app_id, lark_app_secret, event_handler= event_handler,
+        log_level=lark_log_level)
+
+    # Initialize chat handler and servers
+    await chat_handler.initialize()
+    logging.info("Chat session initialized")
+
+    # Instead of calling lark_app.start(), use its async connection method directly
+    return lark_app
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Configure logging
+
+    handler = colorlog.StreamHandler()
+    handler.setFormatter(colorlog.ColoredFormatter(
+	'%(log_color)s%(asctime)s - %(levelname)s - %(name)s - %(message)s'))
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[handler],
+    )
+
+    client = asyncio.run(main())
+    client.start()
