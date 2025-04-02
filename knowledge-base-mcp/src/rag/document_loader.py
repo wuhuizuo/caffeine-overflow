@@ -1,28 +1,29 @@
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import MarkdownHeaderTextSplitter
 from langchain.docstore.document import Document
 
+
 def load_markdown_docs(docs_dir: str = "docs", file_pattern: str = "**/*.md") -> List[Document]:
     """
-    加载指定目录下所有匹配的 Markdown 文件
+    Load all matching Markdown files from the specified directory
     
     Args:
-        docs_dir: 文档目录路径
-        file_pattern: 文件匹配模式，默认加载所有 .md 文件
+        docs_dir: Document directory path
+        file_pattern: File matching pattern, loads all .md files by default
         
     Returns:
-        包含所有加载文档的列表
+        List containing all loaded documents
     """
-    # 验证目录是否存在
+    # Verify directory exists
     if not os.path.exists(docs_dir):
-        raise ValueError(f"目录不存在: {docs_dir}")
+        raise ValueError(f"Directory does not exist: {docs_dir}")
     
-    # 使用DirectoryLoader加载所有markdown文件
-    # 使用TextLoader而不是MarkdownLoader，以保留原始markdown格式
+    # Use DirectoryLoader to load all markdown files
+    # Use TextLoader instead of MarkdownLoader to preserve original markdown format
     try:
-        print(f"加载目录: {docs_dir}")
+        print(f"Loading directory: {docs_dir}")
         loader = DirectoryLoader(
             docs_dir, 
             glob=file_pattern,
@@ -32,37 +33,38 @@ def load_markdown_docs(docs_dir: str = "docs", file_pattern: str = "**/*.md") ->
         documents = loader.load()
         
         if not documents:
-            print(f"警告: 在 {docs_dir} 目录下没有找到匹配的 Markdown 文件")
+            print(f"Warning: No matching Markdown files found in directory {docs_dir}")
             return []
             
-        print(f"成功加载了 {len(documents)} 个文档文件")
+        print(f"Successfully loaded {len(documents)} document files")
         return documents
     except Exception as e:
-        print(f"加载文档时出错: {e}")
+        print(f"Error loading documents: {e}")
         return []
 
+
 def split_markdown_docs(documents: List[Document], 
-                       headers_to_split_on: Optional[List] = None) -> List[Document]:
+                        headers_to_split_on: Optional[List] = None) -> List[Document]:
     """
-    将 Markdown 文档按标题分割成更小的块
+    Split Markdown documents into smaller chunks by headers
     
     Args:
-        documents: 要分割的文档列表
-        headers_to_split_on: 要分割的标题级别，默认分割一级和二级标题
+        documents: List of documents to split
+        headers_to_split_on: Header levels to split on, defaults to level 1-4 headers
         
     Returns:
-        分割后的文档块列表
+        List of document chunks after splitting
     """
     if not documents:
         return []
     
-    # 设置要分割的标题级别（如果未提供）
+    # Set header levels to split on (if not provided)
     if headers_to_split_on is None:
         headers_to_split_on = [
-            ("#", "Header 1"),    # 按一级标题分割
-            ("##", "Header 2"),   # 按二级标题分割
-            ('###', "Header 3"),  # 按三级标题分割
-            ('####', "Header 4")  # 按四级标题分割
+            ("#", "Header 1"),    # Split on level 1 headers
+            ("##", "Header 2"),   # Split on level 2 headers
+            ('###', "Header 3"),  # Split on level 3 headers
+            ('####', "Header 4")  # Split on level 4 headers
         ]
     
     markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
@@ -70,64 +72,68 @@ def split_markdown_docs(documents: List[Document],
     split_docs = []
     for doc in documents:
         try:
-            # 保存原始文档的元数据，如文件来源
+            # Save original document metadata, like source file
             source_metadata = doc.metadata
             
-            # 分割文档
+            # Split document
             splits = markdown_splitter.split_text(doc.page_content)
             
-            # 合并原始元数据和分割后的元数据
+            # Merge original metadata with split metadata
             for split in splits:
                 split.metadata.update(source_metadata)
                 
-                # 如果分割后的文档没有内容，跳过
+                # Skip if split document has no content
                 if not split.page_content.strip():
                     continue
             
             split_docs.extend(splits)
-            print(f"从文档 {source_metadata.get('source', '未知')} 分割出 {len(splits)} 个文档块")
+            print(f"Split document {source_metadata.get('source', 'Unknown')} into {len(splits)} chunks")
         except Exception as e:
-            print(f"分割文档时出错: {e}")
-            # 如果分割失败，保留原始文档
+            print(f"Error splitting document: {e}")
+            # If splitting fails, keep original document
             split_docs.append(doc)
     
-    print(f"分割后的文档块数量: {len(split_docs)}")
+    print(f"Number of document chunks after splitting: {len(split_docs)}")
     return split_docs
 
-def load_and_split_markdown_docs(docs_dir: str = "docs", 
-                               file_pattern: str = "**/*.md",
-                               headers_to_split_on: Optional[List] = None) -> List[Document]:
+
+def load_and_split_markdown_docs(
+    docs_dir: str = "docs", 
+    file_pattern: str = "**/*.md",
+    headers_to_split_on: Optional[List] = None
+) -> List[Document]:
     """
-    加载并分割 Markdown 文档的便捷函数
+    Convenience function to load and split Markdown documents
     
     Args:
-        docs_dir: 文档目录路径
-        file_pattern: 文件匹配模式
-        headers_to_split_on: 要分割的标题级别
+        docs_dir: Document directory path
+        file_pattern: File matching pattern
+        headers_to_split_on: Header levels to split on
         
     Returns:
-        分割后的文档块列表
+        List of document chunks after splitting
     """
-    # 加载文档
+    # Load documents
     documents = load_markdown_docs(docs_dir, file_pattern)
     
-    # 分割文档
+    # Split documents
     split_docs = split_markdown_docs(documents, headers_to_split_on)
     
     return split_docs
 
+
 if __name__ == "__main__":
-    # 简单的测试代码
+    # Simple test code
     docs = load_and_split_markdown_docs()
-    print(f"加载并分割了 {len(docs)} 个文档块")
+    print(f"Loaded and split {len(docs)} document chunks")
     
-    # 打印第一个文档的内容预览（如果存在）
+    # Print preview of first document (if it exists)
     if docs:
-        print("\n第一个文档块预览:")
-        print(f"内容: {docs[0].page_content[:500]}...")
-        print(f"元数据: {docs[0].metadata}") 
+        print("\nFirst document chunk preview:")
+        print(f"Content: {docs[0].page_content[:500]}...")
+        print(f"Metadata: {docs[0].metadata}")
         for doc in docs:
-            print("\n第{}个文档块预览:".format(docs.index(doc)))
-            print(f"内容: {doc.page_content[:500]}...")
-            print(f"元数据: {doc.metadata}")
+            print("\nDocument chunk #{} preview:".format(docs.index(doc)))
+            print(f"Content: {doc.page_content[:500]}...")
+            print(f"Metadata: {doc.metadata}")
             print("-"*100)

@@ -1,11 +1,12 @@
 from langchain_community.document_loaders import UnstructuredMarkdownLoader
 from langchain_core.documents import Document
-import nltk
 
+# Uncomment the following code if you need to download NLTK data:
+# import nltk
 # nltk.download('punkt')
-# print("punkt 下载成功！")
+# print("punkt downloaded successfully!")
 # nltk.download('punkt_tab')
-# print("punkt_tab 下载成功！")
+# print("punkt_tab downloaded successfully!")
 
 markdown_path = "docs/faq.md"
 loader = UnstructuredMarkdownLoader(markdown_path)
