@@ -39,7 +39,7 @@ Please upload the bazel dependencies in a internal machine.
 ### General Questions
 
 #### Q1: What is the `tiprow` bot?
-tiprow is the optional self-test bot acted on pingcap/tidb repo, it's maintained by [hawkingrei](https://github.com/hawkingrei). It will not affect the merging for pull request(CI context created by tiprow will not affect the merging).
+tiprow is the optional self-test bot acted on pingcap/tidb repo, it's maintained by [hawkingrei](https://github.com/hawkingrei). It will not affect the merging for pull request(CI checks created by tiprow will not affect the merging).
 
 #### Q2: How to close or open a PR or Issue?
 Please comment `/close` or `/reopen` in the PR or Issue.
