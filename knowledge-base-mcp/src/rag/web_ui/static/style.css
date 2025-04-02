@@ -1,0 +1,113 @@
+/* Additional styling for TiDB Vector Document Management System */
+
+/* Info status color */
+.info {
+    background-color: #cce5ff;
+    color: #004085;
+}
+
+/* Content container styling */
+.content-container {
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    padding: 15px;
+    margin-top: 15px;
+    border: 1px solid #dee2e6;
+}
+
+/* Highlighted code or content */
+.highlight {
+    background-color: #fffbcc;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* Result block styling */
+.result-block {
+    border-left: 4px solid #3a3af1;
+    padding-left: 15px;
+    margin-bottom: 15px;
+}
+
+/* Card transitions */
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Button transitions */
+.btn {
+    transition: all 0.2s;
+}
+
+/* Footer styling */
+.footer {
+    background-color: #f8f9fa;
+    padding: 20px 0;
+    margin-top: 30px;
+    border-top: 1px solid #dee2e6;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.footer p {
+    margin-bottom: 0;
+}
+
+.footer i {
+    margin-right: 3px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .card-header {
+        padding: 0.75rem;
+    }
+    
+    pre {
+        font-size: 0.8rem;
+    }
+}
+
+/* Progress bar for document processing */
+.progress {
+    height: 8px;
+    margin-top: 10px;
+    display: none;
+}
+
+.progress-bar {
+    background-color: #3a3af1;
+}
+
+/* API key field styling for security */
+input[type="password"].form-control {
+    letter-spacing: 0.3em;
+    font-family: monospace;
+    padding-right: 40px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #6c757d;
+}
+
+/* Table headers */
+.table thead th {
+    background-color: #f1f1f1;
+    border-bottom: 2px solid #dee2e6;
+} 

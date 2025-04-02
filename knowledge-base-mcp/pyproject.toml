@@ -1,0 +1,24 @@
+[project]
+name = "faq-mcp"
+version = "0.1.0"
+description = "TiDB Documentation Assistant MCP using TiDB Vector for semantic search"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "chromadb>=0.6.3",
+    "langchain>=0.3.22",
+    "langchain-community>=0.3.20",
+    "langchain-google-genai>=2.1.2",
+    "langchain-openai>=0.3.11",
+    "markdown>=3.7",
+    "mcp[cli]>=1.6.0",
+    "mysqlclient>=2.2.7",
+    "pymysql>=1.1.1",
+    "sentence-transformers>=4.0.1",
+    "sqlalchemy>=2.0.0",
+    "tidb-vector>=0.0.14",
+    "unstructured>=0.17.2",
+    "nltk>=3.8.1",
+    "flask>=3.1.0",
+    "werkzeug>=3.1.3",
+]
