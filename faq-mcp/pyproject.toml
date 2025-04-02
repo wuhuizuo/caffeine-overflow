@@ -19,4 +19,6 @@ dependencies = [
     "tidb-vector>=0.0.14",
     "unstructured>=0.17.2",
     "nltk>=3.8.1",
+    "flask>=3.1.0",
+    "werkzeug>=3.1.3",
 ]
