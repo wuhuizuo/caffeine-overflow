@@ -641,8 +641,10 @@ dependencies = [
     { name = "markdown" },
     { name = "mcp", extra = ["cli"] },
     { name = "mysqlclient" },
+    { name = "nltk" },
     { name = "pymysql" },
     { name = "sentence-transformers" },
+    { name = "sqlalchemy" },
     { name = "tidb-vector" },
     { name = "unstructured" },
 ]
@@ -657,8 +659,10 @@ requires-dist = [
     { name = "markdown", specifier = ">=3.7" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.6.0" },
     { name = "mysqlclient", specifier = ">=2.2.7" },
+    { name = "nltk", specifier = ">=3.8.1" },
     { name = "pymysql", specifier = ">=1.1.1" },
     { name = "sentence-transformers", specifier = ">=4.0.1" },
+    { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "tidb-vector", specifier = ">=0.0.14" },
     { name = "unstructured", specifier = ">=0.17.2" },
 ]
