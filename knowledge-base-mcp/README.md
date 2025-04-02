@@ -1,6 +1,6 @@
-# TiDB Documentation MCP
+# Knowledge Base MCP
 
-A Model Control Protocol (MCP) tool for retrieving relevant TiDB documentation. This tool uses TiDB Vector to store document embeddings and provides semantic search functionality to assist with responses.
+A Model Control Protocol (MCP) tool for retrieving relevant Knowledge Base(Current only support markdown file). This tool uses TiDB Vector to store document embeddings and provides semantic search functionality to assist with responses.
 
 ## Features
 
@@ -30,8 +30,8 @@ This project uses `uv` for package management. If you don't have `uv` installed,
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/faq-mcp.git
-   cd faq-mcp
+   git clone https://github.com/yourusername/knowledge-base-mcp.git
+   cd knowledge-base-mcp
    ```
 
 2. Create virtual environment and install dependencies:
