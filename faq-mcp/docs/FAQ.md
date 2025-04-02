@@ -59,6 +59,9 @@ Please chat with bot EE ChatOps in Lark IM(FeiShu). For example: `@EE ChatOps /c
 #### Q7: Why my PR's ci context tide always show "Merge is forbidden"?
 The "Merge is forbidden" tide status is expected behavior for Hotfix branches. Once all CI checks pass, the bot will proceed with merging the PR automatically.
 
+#### Q8: Two people have already given LGTM on my PR, why doesn't my PR have the approved label yet?
+lgtm label is counted through voting; if two people give an LGTM, the PR will have the LGTM label. However, approval is determined based on the scope of changes in the modified files of the PR. If a PR modifies code across multiple modules, it will require approvals from all OWNERS of those changed modules before receiving the approved label.
+
 ## CLA/DCO
 
 ### General Questions

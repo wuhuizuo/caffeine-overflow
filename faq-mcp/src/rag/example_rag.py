@@ -6,139 +6,153 @@ from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import Chroma
 from langchain.prompts import PromptTemplate
 
-# 导入自定义的文档加载模块
+# Import custom document loading module
 from document_loader import load_and_split_markdown_docs
 
 def setup_retriever(documents: List[Document], 
                    embedding_model: Optional[any] = None) -> any:
     """
-    创建并返回一个用于文档检索的检索器
+    Create and return a document retriever
     
     Args:
-        documents: 要存储的文档列表
-        embedding_model: 用于向量化的 Embedding 模型，默认使用 OpenAI 
+        documents: List of documents to store
+        embedding_model: Embedding model for vectorization, defaults to OpenAI 
         
     Returns:
-        Retriever 对象
+        Retriever object
     """
-    # 如果未提供 embedding 模型，使用 OpenAI
+    # If no embedding model provided, use OpenAI
     if embedding_model is None:
         try:
             embedding_model = OpenAIEmbeddings()
-            print("OpenAI Embedding 模型已加载。")
+            print("OpenAI Embedding model loaded successfully.")
         except Exception as e:
-            raise ValueError(f"加载 OpenAI Embeddings 失败: {e}\n"
-                           "请确保设置了 OPENAI_API_KEY 环境变量。")
+            raise ValueError(
+                f"Failed to load OpenAI Embeddings: {e}\n"
+                "Please ensure OPENAI_API_KEY environment variable is set."
+            )
     
-    # 使用 Chroma 作为向量存储（这是一个内存数据库，不需要额外配置）
-    # 也可以根据需要替换为 TiDBVectorStore 或其他向量存储
+    # Use Chroma as vector store (this is an in-memory database, no additional configuration needed)
+    # Can be replaced with TiDBVectorStore or other vector stores as needed
     vectorstore = Chroma.from_documents(
         documents=documents,
         embedding=embedding_model
     )
     
-    # 创建检索器，配置相似度检索的参数
+    # Create retriever, configure similarity search parameters
     retriever = vectorstore.as_retriever(
-        search_type="similarity",  # 相似度搜索
-        search_kwargs={"k": 3}     # 返回前 3 个相关文档
+        search_type="similarity",  # Similarity search
+        search_kwargs={"k": 3}     # Return top 3 relevant documents
     )
     
     return retriever
 
 def setup_rag_chain(retriever: any) -> RetrievalQA:
     """
-    创建 RAG 问答链
+    Create RAG question-answering chain
     
     Args:
-        retriever: 文档检索器
+        retriever: Document retriever
         
     Returns:
-        RAG 问答链
+        RAG question-answering chain
     """
-    # 创建 LLM
+    # Create LLM
     try:
         llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
-        print("ChatOpenAI 模型已加载。")
+        print("ChatOpenAI model loaded successfully.")
     except Exception as e:
-        raise ValueError(f"加载 ChatOpenAI 失败: {e}\n"
-                       "请确保设置了 OPENAI_API_KEY 环境变量。")
+        raise ValueError(
+            f"Failed to load ChatOpenAI: {e}\n"
+            "Please ensure OPENAI_API_KEY environment variable is set."
+        )
     
-    # 自定义提示模板，使其能够更好地处理中文FAQ
-    template = """使用以下检索到的上下文来回答最后的问题。
+    # Custom prompt template to better handle Chinese FAQ
+    template = """Use the following retrieved context to answer the final question.
     
-上下文信息:
+Context information:
 {context}
 
-问题: {question}
+Question: {question}
 
-请用简洁专业的中文回答上述问题，如果上下文中没有相关信息，请直接回答"抱歉，我没有足够的信息回答这个问题。"
-答案:"""
+Please answer the above question in concise professional Chinese. If there is no relevant information in the context, please directly answer "Sorry, I don't have enough information to answer this question."
+Answer:"""
 
     QA_CHAIN_PROMPT = PromptTemplate(
         input_variables=["context", "question"],
         template=template,
     )
     
-    # 创建 RetrievalQA 链
+    # Create RetrievalQA chain
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
-        chain_type="stuff",  # 简单地将所有文档合并为一个上下文
+        chain_type="stuff",  # Simply combine all documents into one context
         retriever=retriever,
         chain_type_kwargs={"prompt": QA_CHAIN_PROMPT},
-        return_source_documents=True,  # 返回源文档，方便调试
+        return_source_documents=True,  # Return source documents for debugging
     )
     
     return qa_chain
 
 def main():
     """
-    主函数，演示如何使用文档加载模块构建简单的 RAG 应用
+    Main function, demonstrating how to use document loading module to build a simple RAG application
     """
-    # 1. 加载并分割文档
-    print("正在加载并分割文档...")
+    # 1. Load and split documents
+    print("Loading and splitting documents...")
     docs = load_and_split_markdown_docs(docs_dir="docs")
     
     if not docs:
-        print("未找到文档，程序退出。")
+        print("No documents found, program exiting.")
         return
     
-    # 2. 设置检索器
-    print("正在初始化检索器...")
+    # 2. Set up retriever
+    print("Initializing retriever...")
     retriever = setup_retriever(docs)
     
-    # 3. 设置 RAG 问答链
-    print("正在初始化 RAG 问答链...")
+    # 3. Set up RAG question-answering chain
+    print("Initializing RAG question-answering chain...")
     qa_chain = setup_rag_chain(retriever)
     
-    # 4. 交互式问答
-    print("\n=== RAG 问答系统已就绪 ===")
-    print("输入 '退出' 或 'q' 结束对话")
+    # 4. Interactive Q&A
+    print("\n=== RAG Q&A System Ready ===")
+    print("Enter 'exit' or 'q' to end conversation")
     
     while True:
-        query = input("\n请输入您的问题: ")
+        query = input("\nPlease enter your question: ")
         
-        if query.lower() in ['退出', 'q', 'quit', 'exit']:
-            print("感谢使用，再见！")
+        if query.lower() in ['exit', 'q', 'quit']:
+            print("Thank you for using, goodbye!")
             break
             
         if not query.strip():
             continue
             
-        # 执行查询
+        # Before calling RAG chain, perform similarity search and print scores
         try:
+            # Get vectorstore directly from retriever for score-based search
+            # Note: Chroma returns distance scores (lower is better), not similarity scores
+            docs_with_scores = qa_chain.retriever.vectorstore.similarity_search_with_score(
+                query, k=qa_chain.retriever.search_kwargs.get("k", 3)
+            )
+            
+            print("\n--- Retrieved Documents and Scores (Distance) ---")
+            if not docs_with_scores:
+                print("No relevant documents retrieved.")
+            for doc, score in docs_with_scores:
+                source = doc.metadata.get("source", "Unknown source")
+                print(f"Source: {source}, Score (Distance): {score:.4f}")
+                print(f"Content: {doc.page_content[:500]}...")
+            print("---------------------------------")
+                
+            # Execute complete RAG query
             result = qa_chain({"query": query})
             
-            # 输出答案
-            print("\n答案:", result["result"])
+            # Output answer
+            print("\nAnswer:", result["result"])
             
-            # 输出检索到的文档来源（可选）
-            print("\n检索到的相关文档:")
-            for i, doc in enumerate(result["source_documents"]):
-                source = doc.metadata.get("source", "未知来源")
-                print(f"文档 {i+1}: {source}")
-                # 可以根据需要打印更多信息，如文档内容预览
         except Exception as e:
-            print(f"查询处理过程中出错: {e}")
-    
+            print(f"Error processing query: {e}")
+
 if __name__ == "__main__":
-    main() 
+    main()

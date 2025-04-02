@@ -1,7 +1,6 @@
 import os
-import glob
 from typing import List, Dict, Any, Optional
-from langchain_community.document_loaders import UnstructuredMarkdownLoader
+from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import MarkdownHeaderTextSplitter
 from langchain.docstore.document import Document
 
@@ -20,30 +19,27 @@ def load_markdown_docs(docs_dir: str = "docs", file_pattern: str = "**/*.md") ->
     if not os.path.exists(docs_dir):
         raise ValueError(f"目录不存在: {docs_dir}")
     
-    # 获取所有匹配的文件路径
-    search_path = os.path.join(docs_dir, file_pattern)
-    markdown_files = glob.glob(search_path, recursive=True)
-    
-    if not markdown_files:
-        print(f"警告: 在 {docs_dir} 目录下没有找到匹配的 Markdown 文件")
+    # 使用DirectoryLoader加载所有markdown文件
+    # 使用TextLoader而不是MarkdownLoader，以保留原始markdown格式
+    try:
+        print(f"加载目录: {docs_dir}")
+        loader = DirectoryLoader(
+            docs_dir, 
+            glob=file_pattern,
+            loader_cls=TextLoader,
+            loader_kwargs={"autodetect_encoding": True}
+        )
+        documents = loader.load()
+        
+        if not documents:
+            print(f"警告: 在 {docs_dir} 目录下没有找到匹配的 Markdown 文件")
+            return []
+            
+        print(f"成功加载了 {len(documents)} 个文档文件")
+        return documents
+    except Exception as e:
+        print(f"加载文档时出错: {e}")
         return []
-    
-    # 加载所有文件
-    documents = []
-    for file_path in markdown_files:
-        try:
-            print(f"加载文件: {file_path}")
-            loader = UnstructuredMarkdownLoader(file_path)
-            docs = loader.load()
-            # 添加文件名到元数据
-            for doc in docs:
-                doc.metadata["source"] = file_path
-            documents.extend(docs)
-        except Exception as e:
-            print(f"加载文件 {file_path} 时出错: {e}")
-    
-    print(f"成功加载了 {len(documents)} 个文档")
-    return documents
 
 def split_markdown_docs(documents: List[Document], 
                        headers_to_split_on: Optional[List] = None) -> List[Document]:
@@ -65,8 +61,8 @@ def split_markdown_docs(documents: List[Document],
         headers_to_split_on = [
             ("#", "Header 1"),    # 按一级标题分割
             ("##", "Header 2"),   # 按二级标题分割
-            ('###', "Header 3"),
-            ('####', "Header 4")
+            ('###', "Header 3"),  # 按三级标题分割
+            ('####', "Header 4")  # 按四级标题分割
         ]
     
     markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
@@ -83,8 +79,13 @@ def split_markdown_docs(documents: List[Document],
             # 合并原始元数据和分割后的元数据
             for split in splits:
                 split.metadata.update(source_metadata)
+                
+                # 如果分割后的文档没有内容，跳过
+                if not split.page_content.strip():
+                    continue
             
             split_docs.extend(splits)
+            print(f"从文档 {source_metadata.get('source', '未知')} 分割出 {len(splits)} 个文档块")
         except Exception as e:
             print(f"分割文档时出错: {e}")
             # 如果分割失败，保留原始文档
@@ -125,3 +126,8 @@ if __name__ == "__main__":
         print("\n第一个文档块预览:")
         print(f"内容: {docs[0].page_content[:500]}...")
         print(f"元数据: {docs[0].metadata}") 
+        for doc in docs:
+            print("\n第{}个文档块预览:".format(docs.index(doc)))
+            print(f"内容: {doc.page_content[:500]}...")
+            print(f"元数据: {doc.metadata}")
+            print("-"*100)
