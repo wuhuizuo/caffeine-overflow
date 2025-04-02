@@ -2,7 +2,6 @@ import os
 import argparse
 from mcp.server.fastmcp import FastMCP
 from rag.tidb_vector_util import setup_embeddings, ping_tidb_connection
-from rag.document_loader import load_and_split_markdown_docs
 from rag.doc_retrieval import setup_retrieval_tool
 
 # Initialize FastMCP server
@@ -48,10 +47,6 @@ def main():
     """Main function to run the MCP server"""
     parser = argparse.ArgumentParser(description="TiDB Documentation Assistant MCP")
     parser.add_argument("--sse", action="store_true", help="Run in Server-Sent Events mode")
-    parser.add_argument("--port", type=int, default=int(os.environ.get("MCP_PORT", "8000")), 
-                        help="Port to run SSE server on")
-    parser.add_argument("--docs-dir", type=str, default="docs", 
-                        help="Directory containing documentation to load")
     args = parser.parse_args()
 
     # Check if API key is set for embeddings
@@ -71,18 +66,10 @@ def main():
     if not tidb_connection_string:
         return
 
-    # Load and split documents
-    print(f"Loading documents from {args.docs_dir}...")
-    docs = load_and_split_markdown_docs(docs_dir=args.docs_dir)
-    if not docs:
-        print("No documents found. Please check the docs directory.")
-        return
-    
-    print(f"Loaded {len(docs)} document chunks")
-
-    # Set up retrieval tool
+    # Set up retrieval tool without loading documents
+    # Documents should be loaded and processed by a separate task
     mcp.retrieval_tool = setup_retrieval_tool(
-        docs=docs,
+        docs=None,  # No documents are loaded at startup
         embeddings=embeddings,
         tidb_connection_string=tidb_connection_string
     )
@@ -93,6 +80,7 @@ def main():
     
     # Initialize and run server
     mcp.run(transport=transport_mode)
+
 
 if __name__ == "__main__":
     main()
