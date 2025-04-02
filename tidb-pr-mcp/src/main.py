@@ -39,6 +39,24 @@ async def make_github_request(url: str, params: Dict[str, Any] = None) -> Dict[s
         except Exception as e:
             return {"error": f"API request failed: {str(e)}"}
 
+
+async def util_get_pr_status(pr_number: int) -> str:
+    url = f"{GITHUB_API_BASE}/repos/{REPO_PATH}/pulls/{pr_number}"
+    pr_data = await make_github_request(url)
+    if not pr_data or isinstance(pr_data, dict) and "error" in pr_data:
+        return "unknown"
+    
+    # Get the basic status
+    status = pr_data.get("state", "unknown")
+    
+    # Check if PR is merged
+    merged = pr_data.get("merged", False)
+    if merged:
+        status = "merged"
+    
+    return status
+
+
 @mcp.tool()
 async def get_pr_status(pr_number: int) -> str:
     """Get the status of a PR (open, closed, or merged).
@@ -225,7 +243,13 @@ async def get_pr_reviewers(pr_number: int) -> str:
         body = approval_comment.get('body', '')
         logger.info(f"Found approval comment for PR #{pr_number}")
         
-        # Check if PR has been approved
+        # Check if PR has been approved and get the approved label
+        # If ti-chi-bot has comment "[APPROVALNOTIFIER] This PR is APPROVED" and PR get the approved label, then the PR is APPROVED
+        # Then we need to check PR's status: 
+        # 1. If PR has been merged, then we tell the user that the PR has been merged
+        # 2. If PR is still open, then we need to check why the PR is not been merged:
+        #    a. Not all required ci checks succeed and passed
+        #    b. Some labels of the PR block the PR from being merged: do-not-merge/xxx, needs-ok-to-test, needs-rebase, etc.
         approval_status = "NOT APPROVED"
         if "This PR is **NOT APPROVED**" in body:
             approval_status = "NOT APPROVED"
@@ -237,18 +261,19 @@ async def get_pr_reviewers(pr_number: int) -> str:
         # Extract recommended approvers - multiple pattern matching
         recommended_approvers = []
         
-        # Method 1: Extract please assign [name](url) format from text
-        assign_pattern = r"please assign ((?:\[[^\]]+\]\([^)]+\)(?:,\s*)?)+)"
-        assign_match = re.search(assign_pattern, body, re.IGNORECASE)
+        # # Method 1: Extract please assign [name](url) format from text
+        # assign_pattern = r"please assign ((?:\[[^\]]+\]\([^)]+\)(?:,\s*)?)+)"
+        # assign_match = re.search(assign_pattern, body, re.IGNORECASE)
         
-        if assign_match:
-            # Extract all approver names and links
-            approver_pattern = r"\[([^\]]+)\]\(([^)]+)\)"
-            approvers_text = assign_match.group(1)
-            approvers = re.findall(approver_pattern, approvers_text)
-            recommended_approvers = [{"name": name, "url": url} for name, url in approvers]
+        # if assign_match:
+        #     # Extract all approver names and links
+        #     approver_pattern = r"\[([^\]]+)\]\(([^)]+)\)"
+        #     approvers_text = assign_match.group(1)
+        #     approvers = re.findall(approver_pattern, approvers_text)
+        #     recommended_approvers = [{"name": name, "url": url} for name, url in approvers]
         
         # Method 2: Try to extract from META JSON
+        # Example: <!-- META={"approvers": ["username1", "username2"]} -->
         meta_pattern = r"<!-- META=(.*?) -->"
         meta_match = re.search(meta_pattern, body)
         if meta_match and not recommended_approvers:
@@ -262,10 +287,14 @@ async def get_pr_reviewers(pr_number: int) -> str:
                             "url": f"https://github.com/{approver}"
                         })
             except Exception as e:
-                logger.error(f"Error parsing META JSON: {e}")
+                logger.error(f"Error parsing META APPROVALNOTIFIER JSON: {e}")
         
-        # Extract required approval files paths
+        # Extract concrete OWNERS files from the APPROVALNOTIFIER comment
+        # diff from the two comments: 
+        # 1. [APPROVALNOTIFIER] This PR is **NOT APPROVED**
+        # 2. [APPROVALNOTIFIER] This PR is **APPROVED**
         required_owners_files = []
+        approved_owners_files = []
         details_pattern = r"<details[^>]*>(.*?)</details>"
         details_match = re.search(details_pattern, body, re.DOTALL)
         
@@ -273,40 +302,69 @@ async def get_pr_reviewers(pr_number: int) -> str:
             details_content = details_match.group(1)
             # Identify "Needs approval from an approver in each of these files:" paragraph
             if "Needs approval from an approver in each of these files:" in details_content:
-                # Find OWNERS file paths and links
-                owners_pattern = r"\*\*\[([^\]]+)\]\(([^)]+)\)\*\*"
-                owners_files = re.findall(owners_pattern, details_content)
-                required_owners_files = [{"path": path, "url": url} for path, url in owners_files]
+                # For OWNERS files that have been approved: Find crossed out OWNERS files with approvers
+                # Example: - ~~[OWNERS](https://github.com/pingcap/tidb/blob/master/OWNERS)~~ [Defined2014]
+                # For OWNERS files that have not been approved: Find OWNERS files with approvers
+                # Example: - **[pkg/ddl/OWNERS](https://github.com/pingcap/tidb/blob/master/pkg/ddl/OWNERS)**
+                owners_required_pattern = r"\*\*\[([^\]]+)\]\(([^)]+)\)\*\*"
+                owners_required_files = re.findall(owners_required_pattern, details_content)
+                
+                owners_approved_pattern = r"-?\s*~~\[([^\]]+)\]\(([^)]+)\)~~\s*\[([^\]]+)\]"
+                owners_approved_files = re.findall(owners_approved_pattern, details_content)
+                
+                # if PR is NOT APPROVED, means there are OWNERS files that have not been approved, so required_owners_files must be not empty
+                # if PR is APPROVED, means all OWNERS files have been approved, so owners_required_files must be empty
+                approved_owners_files = [{"path": path, "url": url, "approved_by": approver} 
+                                         for path, url, approver in owners_approved_files]
+                required_owners_files = [{"path": path, "url": url} for path, url in owners_required_files]
+
+
         
         # Use a more structured format
         result = f"Based on the query results, PR #{pr_number} "
         
         if approval_status == "APPROVED":
-            result += "has been **APPROVED** and is ready to be merged.\n"
+            # get the pr status from the github api
+            pr_status = await util_get_pr_status(pr_number)
+            if pr_status == "merged":
+                result += "has been **MERGED**.\n"
+            elif pr_status == "open":
+                result += "has been **APPROVED** and is ready to be merged.\n"
+            else:
+                print(f"Error: unexpected pr status: {pr_status} for PR #{pr_number}")
+                raise Exception(f"Error: unexpected pr status: {pr_status} for PR #{pr_number}")
+            
+            if approved_owners_files:
+                result += "\n* **OWNERS files that have been approved:**\n"
+                for file in approved_owners_files:
+                    result += f"    * [{file['path']}]({file['url']}) - Approved by [{file['approved_by']}](https://github.com/{file['approved_by']})\n"
         else:
             result += "requires review and approval from the following:\n\n"
             
             if recommended_approvers:
-                result += "* **Recommended Approvers (Need approval from each of them):**\n"
+                result += "* **Recommended approvers (need approval from each of them):**\n"
                 for approver in recommended_approvers:
-                    result += f"    * {approver['name']} ({approver['url']})\n"
+                    result += f"    * [{approver['name']}]({approver['url']})\n"
             
             if required_owners_files:
-                result += "* **Required Approvals from Owners of:**\n"
+                result += "* **Still required approvals from owners of:**\n"
                 for file in required_owners_files:
-                    result += f"    * {file['path']} ({file['url']})\n"
+                    result += f"    * [{file['path']}]({file['url']})\n"
+            if approved_owners_files:
+                result += "* **Already got approvals from owners of:**\n"
+                for file in approved_owners_files:
+                    result += f"    * [{file['path']}]({file['url']}) - Already approved by [{file['approved_by']}](https://github.com/{file['approved_by']})\n"
             
             if approval_status == "NOT APPROVED":
-                result += "\nThis PR needs approvals before it can be merged. "
+                result += "\nThis PR needs get all OWNERS files approved to get approved label before it can be merged. "
                 if recommended_approvers:
                     approver_names = [a["name"] for a in recommended_approvers]
-                    result += f"Please request reviews from ALL of these approvers: {', '.join(approver_names)}. You need approval from EACH of them to merge this PR."
                 elif required_owners_files:
-                    result += "Please request reviews from the owners of the files listed above."
+                    result += "Please request reviews and approvals from the owners of the files listed above(for OWNERS files that have not been approved)."
                 else:
-                    result += "Please request reviews from the appropriate owners."
+                    result += "Please request reviews and approvals from the appropriate owners."
         
-        result += "\n\nSUGGESTED_RESPONSE_FORMAT: Please present this information in a bullet-point format with clear sections for approvers(provide the github url) and required files(provide the github url)."
+        result += "\n\nSUGGESTED_RESPONSE_FORMAT: Present this information with clear sections for approvers and owners, please keep the URL for easy access, and use markdown format."
         
         return result
     except Exception as e:
