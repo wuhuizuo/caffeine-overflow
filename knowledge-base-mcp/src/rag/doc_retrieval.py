@@ -8,7 +8,7 @@ def setup_retrieval_tool(
     docs: List[Document],
     embeddings: Any,
     tidb_connection_string: str,
-    table_name: str = "tidb_docs_embeddings"
+    table_name: str = "tidb_embeddings_test"
 ) -> Callable:
     """
     Setup a document retrieval tool using TiDB Vector

@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Config files
+config.yaml
+knowledge-base-mcp/.env.example
