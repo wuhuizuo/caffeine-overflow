@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 import httpx
 import os
 from mcp.server.fastmcp import FastMCP
@@ -20,17 +20,17 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-async def make_github_request(url: str, params: Dict[str, Any] = None) -> Dict[str, Any] | None:
+async def make_github_request(url: str, params: Dict[str, Any] | None = None) -> Dict[str, Any] | None:
     """Make a request to the GitHub API with proper error handling."""
     headers = {
         "User-Agent": USER_AGENT,
         "Accept": "application/vnd.github.v3+json"
     }
-    
+
     # Add authorization if token is available
     if GITHUB_TOKEN:
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
-    
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(url, headers=headers, params=params, timeout=30.0)
@@ -45,46 +45,46 @@ async def util_get_pr_status(pr_number: int) -> str:
     pr_data = await make_github_request(url)
     if not pr_data or isinstance(pr_data, dict) and "error" in pr_data:
         return "unknown"
-    
+
     # Get the basic status
     status = pr_data.get("state", "unknown")
-    
+
     # Check if PR is merged
     merged = pr_data.get("merged", False)
     if merged:
         status = "merged"
-    
+
     return status
 
 
 @mcp.tool()
 async def get_pr_status(pr_number: int) -> str:
     """Get the status of a PR (open, closed, or merged).
-    
+
     Args:
         pr_number: The PR number to check
     """
     url = f"{GITHUB_API_BASE}/repos/{REPO_PATH}/pulls/{pr_number}"
     pr_data = await make_github_request(url)
-    
+
     if "error" in pr_data:
         return f"Error fetching PR status: {pr_data['error']}"
-    
+
     if not pr_data:
         return f"PR #{pr_number} not found"
-    
+
     # Get the basic status
     status = pr_data.get("state", "unknown")
-    
+
     # Check if PR is merged
     merged = pr_data.get("merged", False)
     if merged:
         status = "merged"
-    
+
     # Add more details
     created_at = pr_data.get("created_at", "unknown date")
     updated_at = pr_data.get("updated_at", "unknown date")
-    
+
     return f"""
 PR #{pr_number} Status: {status.upper()}
 Title: {pr_data.get('title', 'No title')}
@@ -96,28 +96,28 @@ URL: {pr_data.get('html_url', '')}
 @mcp.tool()
 async def get_pr_labels(pr_number: int) -> str:
     """Get all labels applied to a PR.
-    
+
     Args:
         pr_number: The PR number to check
     """
     url = f"{GITHUB_API_BASE}/repos/{REPO_PATH}/pulls/{pr_number}"
     pr_data = await make_github_request(url)
-    
+
     if "error" in pr_data:
         return f"Error fetching PR labels: {pr_data['error']}"
-    
+
     if not pr_data:
         return f"PR #{pr_number} not found"
-    
+
     # Extract labels
     labels = pr_data.get("labels", [])
-    
+
     if not labels:
         return f"PR #{pr_number} has no labels"
-    
-    label_list = "\n".join([f"- {label.get('name', 'Unknown')} ({label.get('description', 'No description')})" 
+
+    label_list = "\n".join([f"- {label.get('name', 'Unknown')} ({label.get('description', 'No description')})"
                            for label in labels])
-    
+
     return f"""
 PR #{pr_number} Labels:
 {label_list}
@@ -126,24 +126,24 @@ PR #{pr_number} Labels:
 @mcp.tool()
 async def get_pr_details(pr_number: int) -> str:
     """Get detailed information about a PR including author, commits, files changed, and analysis.
-    
+
     Args:
         pr_number: The PR number to check
     """
     # Get basic PR data
     pr_url = f"{GITHUB_API_BASE}/repos/{REPO_PATH}/pulls/{pr_number}"
     pr_data = await make_github_request(pr_url)
-    
+
     if "error" in pr_data:
         return f"Error fetching PR details: {pr_data['error']}"
-    
+
     if not pr_data:
         return f"PR #{pr_number} not found"
-    
+
     # Get PR files
     files_url = f"{GITHUB_API_BASE}/repos/{REPO_PATH}/pulls/{pr_number}/files"
     files_data = await make_github_request(files_url)
-    
+
     if "error" in files_data:
         files_info = "Error fetching files data"
     else:
@@ -151,21 +151,21 @@ async def get_pr_details(pr_number: int) -> str:
         files_info = "\n".join(files_list[:20])  # Limit to 20 files to avoid too long responses
         if len(files_data) > 20:
             files_info += f"\n... and {len(files_data) - 20} more files"
-    
+
     # Get PR commits
     commits_url = f"{GITHUB_API_BASE}/repos/{REPO_PATH}/pulls/{pr_number}/commits"
     commits_data = await make_github_request(commits_url)
-    
+
     if "error" in commits_data:
         commits_count = "Error fetching commits data"
     else:
         commits_count = len(commits_data)
-    
+
     # Extract PR details
     author = pr_data.get("user", {}).get("login", "Unknown")
     title = pr_data.get("title", "No title")
     body = pr_data.get("body", "No description")
-    
+
     # Prepare summary of the PR's purpose
     summary = f"""
 Based on the PR title, description, and changed files, this PR appears to be:
@@ -174,7 +174,7 @@ Based on the PR title, description, and changed files, this PR appears to be:
 - Changed {len(files_data) if isinstance(files_data, list) else 'unknown number of'} files
 - Contains {commits_count} commits
     """
-    
+
     return f"""
 PR #{pr_number} Details:
 Author: {author}
@@ -191,7 +191,7 @@ PR Analysis:
 @mcp.tool()
 async def get_pr_reviewers(pr_number: int) -> str:
     """Get information about required reviewers for a PR and the files that trigger these requirements.
-    
+
     Args:
         pr_number: The PR number to check
     """
@@ -202,23 +202,23 @@ async def get_pr_reviewers(pr_number: int) -> str:
         "direction": "desc",
         "per_page": 30
     }
-    
+
     page = 1
     approval_comment = None
     max_pages = 5
-    
+
     # Find approval comments
     while approval_comment is None and page <= max_pages:
         try:
             params["page"] = page
             comments_data = await make_github_request(issue_comments_url, params=params)
-            
+
             if isinstance(comments_data, dict) and "error" in comments_data:
                 return f"Error fetching PR comments: {comments_data['error']}"
-            
+
             if not comments_data or not isinstance(comments_data, list):
                 break
-            
+
             # Find ti-chi-bot's APPROVALNOTIFIER comments
             for comment in comments_data:
                 login = comment.get('user', {}).get('login', '')
@@ -227,25 +227,25 @@ async def get_pr_reviewers(pr_number: int) -> str:
                     if body and '[APPROVALNOTIFIER]' in body:
                         approval_comment = comment
                         break
-            
+
             if approval_comment or len(comments_data) < params["per_page"]:
                 break
-                
+
             page += 1
         except Exception as e:
             return f"Error processing PR comments: {str(e)}"
-    
+
     if not approval_comment:
         return f"No approval notification found from ti-chi-bot on PR #{pr_number}. The PR might be very new or ti-chi-bot hasn't analyzed it yet."
-    
+
     # Parse comment content
     try:
         body = approval_comment.get('body', '')
         logger.info(f"Found approval comment for PR #{pr_number}")
-        
+
         # Check if PR has been approved and get the approved label
         # If ti-chi-bot has comment "[APPROVALNOTIFIER] This PR is APPROVED" and PR get the approved label, then the PR is APPROVED
-        # Then we need to check PR's status: 
+        # Then we need to check PR's status:
         # 1. If PR has been merged, then we tell the user that the PR has been merged
         # 2. If PR is still open, then we need to check why the PR is not been merged:
         #    a. Not all required ci checks succeed and passed
@@ -255,23 +255,23 @@ async def get_pr_reviewers(pr_number: int) -> str:
             approval_status = "NOT APPROVED"
         elif "This PR is **APPROVED**" in body:
             approval_status = "APPROVED"
-        
+
         logger.info(f"PR #{pr_number} approval status: {approval_status}")
-        
+
         # Extract recommended approvers - multiple pattern matching
         recommended_approvers = []
-        
+
         # # Method 1: Extract please assign [name](url) format from text
         # assign_pattern = r"please assign ((?:\[[^\]]+\]\([^)]+\)(?:,\s*)?)+)"
         # assign_match = re.search(assign_pattern, body, re.IGNORECASE)
-        
+
         # if assign_match:
         #     # Extract all approver names and links
         #     approver_pattern = r"\[([^\]]+)\]\(([^)]+)\)"
         #     approvers_text = assign_match.group(1)
         #     approvers = re.findall(approver_pattern, approvers_text)
         #     recommended_approvers = [{"name": name, "url": url} for name, url in approvers]
-        
+
         # Method 2: Try to extract from META JSON
         # Example: <!-- META={"approvers": ["username1", "username2"]} -->
         meta_pattern = r"<!-- META=(.*?) -->"
@@ -288,16 +288,16 @@ async def get_pr_reviewers(pr_number: int) -> str:
                         })
             except Exception as e:
                 logger.error(f"Error parsing META APPROVALNOTIFIER JSON: {e}")
-        
+
         # Extract concrete OWNERS files from the APPROVALNOTIFIER comment
-        # diff from the two comments: 
+        # diff from the two comments:
         # 1. [APPROVALNOTIFIER] This PR is **NOT APPROVED**
         # 2. [APPROVALNOTIFIER] This PR is **APPROVED**
         required_owners_files = []
         approved_owners_files = []
         details_pattern = r"<details[^>]*>(.*?)</details>"
         details_match = re.search(details_pattern, body, re.DOTALL)
-        
+
         if details_match:
             details_content = details_match.group(1)
             # Identify "Needs approval from an approver in each of these files:" paragraph
@@ -308,21 +308,21 @@ async def get_pr_reviewers(pr_number: int) -> str:
                 # Example: - **[pkg/ddl/OWNERS](https://github.com/pingcap/tidb/blob/master/pkg/ddl/OWNERS)**
                 owners_required_pattern = r"\*\*\[([^\]]+)\]\(([^)]+)\)\*\*"
                 owners_required_files = re.findall(owners_required_pattern, details_content)
-                
+
                 owners_approved_pattern = r"-?\s*~~\[([^\]]+)\]\(([^)]+)\)~~\s*\[([^\]]+)\]"
                 owners_approved_files = re.findall(owners_approved_pattern, details_content)
-                
+
                 # if PR is NOT APPROVED, means there are OWNERS files that have not been approved, so required_owners_files must be not empty
                 # if PR is APPROVED, means all OWNERS files have been approved, so owners_required_files must be empty
-                approved_owners_files = [{"path": path, "url": url, "approved_by": approver} 
+                approved_owners_files = [{"path": path, "url": url, "approved_by": approver}
                                          for path, url, approver in owners_approved_files]
                 required_owners_files = [{"path": path, "url": url} for path, url in owners_required_files]
 
 
-        
+
         # Use a more structured format
         result = f"Based on the query results, PR #{pr_number} "
-        
+
         if approval_status == "APPROVED":
             # get the pr status from the github api
             pr_status = await util_get_pr_status(pr_number)
@@ -333,19 +333,19 @@ async def get_pr_reviewers(pr_number: int) -> str:
             else:
                 print(f"Error: unexpected pr status: {pr_status} for PR #{pr_number}")
                 raise Exception(f"Error: unexpected pr status: {pr_status} for PR #{pr_number}")
-            
+
             if approved_owners_files:
                 result += "\n* **OWNERS files that have been approved:**\n"
                 for file in approved_owners_files:
                     result += f"    * [{file['path']}]({file['url']}) - Approved by [{file['approved_by']}](https://github.com/{file['approved_by']})\n"
         else:
             result += "requires review and approval from the following:\n\n"
-            
+
             if recommended_approvers:
                 result += "* **Recommended approvers (need approval from each of them):**\n"
                 for approver in recommended_approvers:
                     result += f"    * [{approver['name']}]({approver['url']})\n"
-            
+
             if required_owners_files:
                 result += "* **Still required approvals from owners of:**\n"
                 for file in required_owners_files:
@@ -354,7 +354,7 @@ async def get_pr_reviewers(pr_number: int) -> str:
                 result += "* **Already got approvals from owners of:**\n"
                 for file in approved_owners_files:
                     result += f"    * [{file['path']}]({file['url']}) - Already approved by [{file['approved_by']}](https://github.com/{file['approved_by']})\n"
-            
+
             if approval_status == "NOT APPROVED":
                 result += "\nThis PR needs get all OWNERS files approved to get approved label before it can be merged. "
                 if recommended_approvers:
@@ -363,9 +363,9 @@ async def get_pr_reviewers(pr_number: int) -> str:
                     result += "Please request reviews and approvals from the owners of the files listed above(for OWNERS files that have not been approved)."
                 else:
                     result += "Please request reviews and approvals from the appropriate owners."
-        
+
         result += "\n\nSUGGESTED_RESPONSE_FORMAT: Present this information with clear sections for approvers and owners, please keep the URL for easy access, and use markdown format."
-        
+
         return result
     except Exception as e:
         return f"Error parsing approval comment: {str(e)}\n\nOriginal comment: {body[:200]}..."
@@ -375,9 +375,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="GitHub PR Analyzer")
     parser.add_argument("--sse", action="store_true", help="Use SSE transport mode instead of default stdio")
     args = parser.parse_args()
-    
+
     # Choose transport mode based on command line argument
     transport_mode = "sse" if args.sse else "stdio"
-    
+
     # Initialize and run server
     mcp.run(transport=transport_mode)
