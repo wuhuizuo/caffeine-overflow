@@ -1,0 +1,16 @@
+config:
+  wide_screen_mode: true
+elements:
+  - tag: markdown
+    content: |-
+{{ indent 6 .Message }}
+  - tag: hr
+  - tag: note
+    elements:
+      - tag: plain_text
+        content: "EE ChatOps Bot developed by EE team"
+header:
+  template: '{{ if eq .Status "success" }}green{{ else if eq .Status "skip" }}grey{{ else if eq .Status "info" }}blue{{ else }}red{{ end }}'
+  title:
+    content: "{{ .Status }}"
+    tag: plain_text
