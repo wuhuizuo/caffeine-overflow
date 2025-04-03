@@ -7,7 +7,7 @@ from rag.doc_retrieval import setup_retrieval_tool
 # Initialize FastMCP server
 # get port from environment variable, default to 8000
 mcp = FastMCP(
-    "askee_doc_assistant",
+    "knowledge_assistant",
     port=os.environ.get("MCP_PORT", "8000")
 )
 
@@ -34,7 +34,7 @@ def setup_tidb_vector():
 @mcp.tool()
 async def query_docs(query: str, max_results: int = 3, distance_threshold: float = 0.5) -> str:
     """Query documentation to get relevant information for the given question.
-    
+
     Args:
         query: The question or query to search for in documentation
         max_results: Maximum number of results to return (default: 3)
@@ -77,7 +77,7 @@ def main():
     # Start MCP server
     # Choose transport mode based on command line argument
     transport_mode = "sse" if args.sse else "stdio"
-    
+
     # Initialize and run server
     mcp.run(transport=transport_mode)
 
