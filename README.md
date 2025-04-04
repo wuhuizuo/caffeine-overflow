@@ -20,6 +20,44 @@ The system consists of two primary MCP services implemented in Python and a Lark
 2.  **`knowledge-base-mcp`**: Performs semantic search over a knowledge base (currently Markdown files). It uses [TiDB Vector](https://docs.pingcap.com/tidbcloud/vector-search-overview) for storing and retrieving document embeddings. This component also includes `tidb-vector-ui`, a web tool for document processing.
 3.  **`lark-bot`**: Acts as an MCP client, allowing users to interact with the MCP services through the Lark messaging platform.
 
+## Architecture Diagrams
+
+### Lark Bot Interaction Flow
+
+```mermaid
+graph LR
+    User -- Query --> Lark;
+    Lark -- Message --> lark_bot(lark-bot);
+    lark_bot -- Request --> pr_mcp(tidb-pr-mcp);
+    lark_bot -- Request --> kb_mcp(knowledge-base-mcp);
+    pr_mcp -- Response --> lark_bot;
+    kb_mcp -- Response --> lark_bot;
+    lark_bot -- Reply --> Lark;
+    Lark -- Response --> User;
+
+    subgraph MCP Services
+        pr_mcp
+        kb_mcp
+    end
+```
+
+### Direct MCP Client Interaction Flow (e.g., Cursor)
+
+```mermaid
+graph LR
+    User -- Query --> MCPClient(MCP Client e.g., Cursor);
+    MCPClient -- Request --> pr_mcp(tidb-pr-mcp);
+    MCPClient -- Request --> kb_mcp(knowledge-base-mcp);
+    pr_mcp -- Response --> MCPClient;
+    kb_mcp -- Response --> MCPClient;
+    MCPClient -- Response --> User;
+
+    subgraph MCP Services
+        pr_mcp
+        kb_mcp
+    end
+```
+
 ## Components
 
 -   **[`tidb-pr-mcp/`](./tidb-pr-mcp/README.md)**: Python MCP service for TiDB PR analysis.
