@@ -1,0 +1,42 @@
+# knowledge-base-mcp/src/rag/docker-compose.yml
+version: '3.8'
+
+services:
+  backend:
+    image: purelind/tidb-vector-ui-backend:latest
+    container_name: rag_backend
+    ports:
+      - "5000:5000" 
+    environment:
+      # Pass environment variables required by the backend
+      # These should be set in your host environment or a .env file
+      - TIDB_VECTOR_CONNECTION_STRING=${TIDB_VECTOR_CONNECTION_STRING}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    restart: unless-stopped
+    # If backend needs access to local files mounted as volumes, define them here
+    # volumes:
+    #   - ./some_local_data:/app/data 
+
+  frontend:
+    image: purelind/tidb-vector-ui-frontend:latest
+    container_name: rag_frontend
+    ports:
+      - "3000:3000" 
+    environment:
+      # Tell Next.js where the backend API is running (service name 'backend' on port 5000)
+      - NEXT_PUBLIC_API_BASE_URL=http://backend:5000
+    depends_on:
+      - backend 
+    restart: unless-stopped
+
+# Notes:
+# 1. Create a .env file in THIS directory (knowledge-base-mcp/src/rag/)
+#    to define TIDB_VECTOR_CONNECTION_STRING, OPENAI_API_KEY, and GOOGLE_API_KEY.
+#    Example .env file:
+#    TIDB_VECTOR_CONNECTION_STRING=mysql+pymysql://user:password@host:port/database?ssl_ca=...
+#    OPENAI_API_KEY=sk-...
+#    GOOGLE_API_KEY=...
+#
+# 2. Run 'docker-compose up --build' in the terminal from THIS directory (knowledge-base-mcp/src/rag/).
+# 3. Access the frontend at http://localhost:3000 

@@ -11,4 +11,5 @@ wheels/
 
 # Config files
 config.yaml
-knowledge-base-mcp/.env.example
+knowledge-base-mcp/.env
+knowledge-base-mcp/src/rag/.env
