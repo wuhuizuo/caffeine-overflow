@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const FLASK_BACKEND_URL = process.env.FLASK_BACKEND_URL || 'http://127.0.0.1:5000';
+const backendApiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export async function POST(request: NextRequest) {
+  if (!backendApiUrl) {
+    console.error('Error: NEXT_PUBLIC_API_BASE_URL environment variable is not set.');
+    return NextResponse.json({ success: false, message: 'Backend service URL is not configured.' }, { status: 500 });
+  }
+
   try {
     const body = await request.json();
     const { table_name, connection_string } = body;
@@ -16,7 +21,7 @@ export async function POST(request: NextRequest) {
     formData.append('table_name', table_name);
     formData.append('connection_string', connection_string);
 
-    const flaskResponse = await fetch(`${FLASK_BACKEND_URL}/api/drop_table`, {
+    const flaskResponse = await fetch(`${backendApiUrl}/api/drop_table`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -48,7 +53,7 @@ export async function POST(request: NextRequest) {
         errorMessage = error.message;
     }
     if (error instanceof TypeError && error.message.includes('fetch failed')) {
-        errorMessage = `Could not connect to the backend service at ${FLASK_BACKEND_URL}. Please ensure it's running.`;
+        errorMessage = `Could not connect to the backend service at ${backendApiUrl}. Please ensure it's running.`;
         return NextResponse.json({ success: false, message: errorMessage }, { status: 503 });
     }
     return NextResponse.json({ success: false, message: 'An unexpected error occurred: ' + errorMessage }, { status: 500 });

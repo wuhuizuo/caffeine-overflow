@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const FLASK_BACKEND_URL = process.env.FLASK_BACKEND_URL || 'http://127.0.0.1:5000';
+const backendApiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export async function POST(request: NextRequest) {
+  // Ensure the backend URL is configured
+  if (!backendApiUrl) {
+    console.error('Error: NEXT_PUBLIC_API_BASE_URL environment variable is not set.');
+    return NextResponse.json({ success: false, message: 'Backend service URL is not configured.' }, { status: 500 });
+  }
+
   try {
     // Next.js automatically handles multipart/form-data
     const formData = await request.formData();
@@ -32,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Forward the request (including files) to the Flask backend
-    const flaskResponse = await fetch(`${FLASK_BACKEND_URL}/api/upload_documents`, {
+    const flaskResponse = await fetch(`${backendApiUrl}/api/upload_documents`, {
       method: 'POST',
       headers: {
         // Content-Type is set automatically by fetch when using FormData
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
         errorMessage = error.message;
     }
      if (error instanceof TypeError && error.message.includes('fetch failed')) {
-        errorMessage = `Could not connect to the backend service at ${FLASK_BACKEND_URL}. Please ensure it's running.`;
+        errorMessage = `Could not connect to the backend service at ${backendApiUrl}. Please ensure it's running.`;
         return NextResponse.json({ success: false, message: errorMessage }, { status: 503 });
     }
     return NextResponse.json({ success: false, message: 'An unexpected error occurred: ' + errorMessage }, { status: 500 });

@@ -26,22 +26,18 @@ RUN uv pip install --system .
 # Remove curl after use (No longer needed as curl wasn't installed)
 
 # Copy the rest of the backend application code
-COPY src/rag/web_app.py .
-COPY src/rag/tidb_vector_util.py ./rag/
-COPY src/rag/document_loader.py ./rag/
+COPY src/vector_search/app.py vector_search/
+COPY src/vector_search/tidb_vector_util.py vector_search/
+COPY src/vector_search/document_loader.py vector_search/
 
 # Set environment variables
-ENV FLASK_APP=web_app.py
+ENV FLASK_APP=vector_search/app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=5000
-# Add environment variables needed by the app (e.g., for default connection strings or API keys if not passed at runtime)
-# ENV TIDB_VECTOR_CONNECTION_STRING="..."
-# ENV OPENAI_API_KEY="..."
-# ENV GOOGLE_API_KEY="..."
 
 # Expose the port the app runs on
 EXPOSE 5000
 
 # Run the application using Gunicorn
 # Gunicorn should be listed as a dependency in pyproject.toml
-CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "web_app:app"] 
+CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "vector_search.app:app"]
