@@ -84,6 +84,17 @@ export function DatabaseConnectionCard() {
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="connection-string">TiDB Connection String</Label>
+            <p className="text-sm text-muted-foreground">
+              Learn how to{' '}
+              <a 
+                href="https://docs.pingcap.com/tidb/stable/dev-guide-build-cluster-in-cloud/#step-1-create-a-tidb-cloud-serverless-cluster" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline text-blue-600 hover:text-blue-800"
+              >
+                create a TiDB Serverless cluster and get the connection string
+              </a>.
+            </p>
             <Input 
               id="connection-string" 
               type="password" 
