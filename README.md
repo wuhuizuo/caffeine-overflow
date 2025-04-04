@@ -75,8 +75,12 @@ The individual MCP services can also be run standalone or integrated with other 
 
 The MCP architecture allows for flexible integration:
 
--   **Additional Clients**: The `tidb-pr-mcp` and `knowledge-base-mcp` services can be connected to other MCP-compatible clients like Cursor IDE, Chatwise, or Cherry Studio. See the respective service READMEs for integration guides (e.g., Cursor IDE).
+-   **Additional Clients**: The `tidb-pr-mcp` and `knowledge-base-mcp` services can be connected to other MCP-compatible clients. See the respective service READMEs for basic integration steps (e.g., command and working directory). For detailed client-specific setup:
+    -   **Cursor IDE**: See [Cursor MCP Configuration](https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers).
+    -   **Chatwise**: See [Chatwise MCP Tools](https://docs.chatwise.app/tools.html#tools-mcp).
+    -   **Cherry Studio**: See [Cherry Studio MCP Tools](https://docs.cherry-ai.com/advanced-basic/mcp).
 -   **Additional Services**: The `lark-bot` can be extended to communicate with other MCP services beyond the ones included in this project.
+-   **Discover More MCP Servers**: Explore a wide range of community-contributed MCP servers at [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers).
 
 ## License
 
