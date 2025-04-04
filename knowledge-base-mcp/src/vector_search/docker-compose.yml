@@ -4,7 +4,7 @@ version: '3.8'
 services:
   backend:
     image: purelind/tidb-vector-ui-backend:latest
-    container_name: rag_backend
+    container_name: vector_search_backend
     ports:
       - "5000:5000" 
     environment:
@@ -20,7 +20,7 @@ services:
 
   frontend:
     image: purelind/tidb-vector-ui-frontend:latest
-    container_name: rag_frontend
+    container_name: vector_search_frontend
     ports:
       - "3000:3000" 
     environment:

@@ -1,8 +1,8 @@
 import os
 import argparse
 from mcp.server.fastmcp import FastMCP
-from rag.tidb_vector_util import setup_embeddings, ping_tidb_connection
-from rag.doc_retrieval import setup_retrieval_tool
+from vector_search.tidb_vector_util import setup_embeddings, ping_tidb_connection
+from vector_search.doc_retrieval import setup_retrieval_tool
 
 # Initialize FastMCP server
 # get port from environment variable, default to 8000

@@ -5,11 +5,11 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Install dependencies based on lock file
-COPY src/rag/tidb-vector-ui/package.json src/rag/tidb-vector-ui/package-lock.json ./
+COPY src/vector-search/tidb-vector-ui/package.json src/vector-search/tidb-vector-ui/package-lock.json ./
 RUN npm install
 
 # Copy all frontend source code
-COPY src/rag/tidb-vector-ui/ ./
+COPY src/vector-search/tidb-vector-ui/ ./
 
 # Build the Next.js application
 RUN npm run build

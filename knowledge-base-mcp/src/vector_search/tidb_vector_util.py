@@ -11,7 +11,7 @@ import time
 import json
 
 # Import custom document loading module
-from rag.document_loader import load_and_split_markdown_docs
+from vector_search.document_loader import load_and_split_markdown_docs
 
 # --- Vectorization and Storage ---
 
