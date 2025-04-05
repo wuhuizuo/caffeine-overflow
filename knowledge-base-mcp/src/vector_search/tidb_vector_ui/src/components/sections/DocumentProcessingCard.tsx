@@ -194,8 +194,8 @@ export function DocumentProcessingCard() {
         {/* Row 1: Table Name */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2 md:col-span-3">
-            <Label htmlFor="table-name">New Table Name</Label>
-            <Input id="table-name" placeholder="Select from Table Mgmt or enter new" value={tableName} onChange={(e) => setTableName(e.target.value)} disabled={isLoading} />
+            <Label htmlFor="table-name">Select Vector Table</Label>
+            <Input id="table-name" placeholder="TiDB vector table used for providing vector storage." value={tableName} onChange={(e) => setTableName(e.target.value)} disabled={isLoading} />
           </div>
         </div>
 

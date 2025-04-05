@@ -127,8 +127,8 @@ export function RetrievalTestingCard() {
         {/* Row 1: Table Name, Query */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="retrieval-table-name">Table Name</Label>
-            <Input id="retrieval-table-name" placeholder="Select table from Table Mgmt" value={tableName} onChange={(e) => setTableName(e.target.value)} disabled={isLoading} />
+            <Label htmlFor="retrieval-table-name">Select Vector Table</Label>
+            <Input id="retrieval-table-name" placeholder="TiDB vector table used for providing vector queries." value={tableName} onChange={(e) => setTableName(e.target.value)} disabled={isLoading} />
           </div>
            <div className="space-y-2 md:col-span-2">
              <Label htmlFor="retrieval-query">Query</Label>
