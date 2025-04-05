@@ -15,8 +15,10 @@ You can run it by following steps:
   ask.llm.mcp_servers:
     <a-mcp-tool-name>:
       base_url: <your_mcp_server_base_url(without /sse path)>
+  app_id: <your_app_id>
+  app_secret: <your_app_secret>
   ```
 2. Run the lark bot app:
   ```bash
-  go run ./cmd/server -app-id=<your_app_id> -app-secret=<your_app_secret>
+  go run ./cmd/server
   ```

@@ -16,7 +16,7 @@ services:
     image: purelind/tiassistant-vector-search-frontend:latest
     container_name: vector_search_frontend
     ports:
-      - "3030:3000" 
+      - "3000:3000" 
     environment:
       # Tell Next.js where the backend API is running (service name 'backend' on port 5000)
       - NEXT_PUBLIC_API_BASE_URL=http://backend:5000
