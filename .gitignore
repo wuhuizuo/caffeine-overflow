@@ -13,3 +13,6 @@ wheels/
 config.yaml
 knowledge-base-mcp/.env
 knowledge-base-mcp/src/rag/.env
+
+# cursor
+.cursor/
